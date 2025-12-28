@@ -21,9 +21,9 @@ func main() {
 	// Create agent configuration
 	cfg := bua.Config{
 		APIKey:      apiKey,
-		Model:       "gemini-2.5-flash", // or "gemini-2.5-pro"
-		ProfileName: "example",          // Persistent profile for session data
-		Headless:    false,              // Set to true for headless operation
+		Model:       "gemini-3-pro-preview",
+		ProfileName: "example", // Persistent profile for session data
+		Headless:    false,     // Set to true for headless operation
 		Viewport:    bua.DesktopViewport,
 		Debug:       true,
 	}

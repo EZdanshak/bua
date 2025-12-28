@@ -22,7 +22,7 @@ func main() {
 	// Create agent configuration
 	cfg := bua.Config{
 		APIKey:      apiKey,
-		Model:       "gemini-2.5-flash",
+		Model:       "gemini-3-pro-preview",
 		ProfileName: "scraping",
 		Headless:    true, // Run in headless mode for scraping
 		Viewport:    bua.DesktopViewport,
