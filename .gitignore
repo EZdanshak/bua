@@ -51,3 +51,5 @@ temp/
 # Build artifacts
 *.prof
 *.trace
+
+.serena/
