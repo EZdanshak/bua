@@ -14,14 +14,14 @@ func TestNew(t *testing.T) {
 			name: "valid config",
 			cfg: Config{
 				APIKey: "test-key",
-				Model:  "gemini-2.5-flash",
+				Model:  "gemini-3-flash-preview",
 			},
 			wantErr: false,
 		},
 		{
 			name: "missing API key",
 			cfg: Config{
-				Model: "gemini-2.5-flash",
+				Model: "gemini-3-flash-preview",
 			},
 			wantErr: true,
 		},
@@ -61,8 +61,8 @@ func TestViewportDefaults(t *testing.T) {
 	if DesktopViewport == nil {
 		t.Error("DesktopViewport is nil")
 	}
-	if DesktopViewport.Width != 1920 || DesktopViewport.Height != 1080 {
-		t.Errorf("DesktopViewport = %v, want 1920x1080", DesktopViewport)
+	if DesktopViewport.Width != 1280 || DesktopViewport.Height != 800 {
+		t.Errorf("DesktopViewport = %v, want 1280x800", DesktopViewport)
 	}
 
 	if TabletViewport == nil {

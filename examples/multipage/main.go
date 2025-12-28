@@ -9,10 +9,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"github.com/anxuanzi/bua-go"
 )
 
 func main() {
+	// Load .env file from project root
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Printf("Warning: Could not load .env file: %v", err)
+	}
+
 	// Get API key from environment
 	apiKey := os.Getenv("GOOGLE_API_KEY")
 	if apiKey == "" {
@@ -22,7 +29,7 @@ func main() {
 	// Create agent configuration
 	cfg := bua.Config{
 		APIKey:          apiKey,
-		Model:           "gemini-2.5-flash",
+		Model:           "gemini-3-flash-preview", // Latest model with 1M input, 65K output
 		ProfileName:     "multipage",
 		Headless:        false, // Show browser for demonstration
 		Viewport:        bua.DesktopViewport,

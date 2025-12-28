@@ -55,7 +55,7 @@ import (
 func main() {
     agent, err := bua.New(bua.Config{
         APIKey:   os.Getenv("GOOGLE_API_KEY"),
-        Model:    "gemini-2.5-flash",
+        Model:    "gemini-3-flash-preview",
         Headless: false,
     })
     if err != nil {
@@ -91,7 +91,7 @@ fmt.Println(string(data))
 ```go
 bua.Config{
     APIKey:      "your-api-key",       // Required: Google API key
-    Model:       "gemini-2.5-flash",   // or "gemini-2.5-pro"
+    Model:       "gemini-3-flash-preview",   // Latest model
     ProfileName: "my-session",         // Persist cookies/logins (optional)
     Headless:    true,                 // Run without browser window
     Viewport:    bua.DesktopViewport,  // Or TabletViewport, MobileViewport
@@ -103,7 +103,7 @@ bua.Config{
 
 | Preset | Size |
 |--------|------|
-| `bua.DesktopViewport` | 1920×1080 |
+| `bua.DesktopViewport` | 1280×800 |
 | `bua.TabletViewport` | 768×1024 |
 | `bua.MobileViewport` | 375×812 |
 

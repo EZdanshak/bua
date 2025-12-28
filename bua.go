@@ -30,7 +30,7 @@ type Config struct {
 	// APIKey is the API key for the LLM provider (e.g., Gemini API key).
 	APIKey string
 
-	// Model is the model ID to use (e.g., "gemini-2.5-flash", "gemini-2.5-pro").
+	// Model is the model ID to use (e.g., "gemini-3-flash-preview").
 	Model string
 
 	// ProfileName is the name of the browser profile to use for session persistence.
