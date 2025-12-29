@@ -44,7 +44,7 @@ func main() {
 	//   - Add delays between tasks
 	cfg := bua.Config{
 		APIKey:          apiKey,
-		Model:           "gemini-2.0-flash", // Use stable model
+		Model:           "gemini-3-pro-preview",
 		ProfileName:     "research",
 		Headless:        false, // Show browser for debugging
 		Viewport:        bua.DesktopViewport,
