@@ -60,15 +60,10 @@ import (
 )
 
 func main() {
-	cfg := bua.Config{
-		APIKey:   os.Getenv("GOOGLE_API_KEY"),
-		Model:    bua.ModelGemini3Flash, // Use model constants
-		Headless: false,
-	}
-	// Optional: Apply token preset for faster operation
-	// cfg.ApplyTokenPreset(bua.TokenPresetTextOnly)
-
-	agent, err := bua.New(cfg)
+	// Only APIKey is required - everything else has sensible defaults!
+	agent, err := bua.New(bua.Config{
+		APIKey: os.Getenv("GOOGLE_API_KEY"),
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,12 +83,11 @@ func main() {
 ## Web Scraping Example
 
 ```go
-// Use TextOnly mode for fast text extraction
-cfg := bua.Config{
+// Use PresetFast for text-only, fastest operation
+agent, _ := bua.New(bua.Config{
 	APIKey: os.Getenv("GOOGLE_API_KEY"),
-	Model:  bua.ModelGemini25Flash,
-}
-cfg.ApplyTokenPreset(bua.TokenPresetTextOnly) // No screenshots, fastest
+	Preset: bua.PresetFast, // No screenshots, ~5-15K tokens/page
+})
 
 result, _ := agent.Run(ctx, `
     Go to news.ycombinator.com and extract the top 5 story titles and URLs.
@@ -106,17 +100,58 @@ fmt.Println(string(data))
 
 ## Configuration
 
-### Basic Configuration
+### Simple Config (Recommended)
+
+Only `APIKey` is required. Everything else has sensible defaults:
+
+```go
+// Minimal - just works!
+bua.New(bua.Config{APIKey: apiKey})
+
+// With preset for specific needs
+bua.New(bua.Config{
+    APIKey: apiKey,
+    Preset: bua.PresetFast, // Text-only, fastest
+})
+
+// For debugging
+bua.New(bua.Config{
+    APIKey: apiKey,
+    Debug:  true,
+})
+```
+
+### Presets
+
+Use presets to control screenshot quality and token usage:
+
+| Preset | Screenshots | Tokens/Page | Best For |
+|--------|-------------|-------------|----------|
+| `PresetFast` | None | ~5-15K | Text extraction, form filling, scraping |
+| `PresetEfficient` | 640px, q50 | ~15-25K | High-volume automation, cost savings |
+| `PresetBalanced` | 800px, q60 | ~25-40K | Most tasks (default) |
+| `PresetQuality` | 1024px, q75 | ~40-60K | Complex UIs, visual verification |
+| `PresetMax` | 1280px, q85 | ~60-100K | Debugging, maximum accuracy |
+
+### Full Configuration
 
 ```go
 bua.Config{
-    APIKey:          "your-api-key",        // Required: Google API key
-    Model:           bua.ModelGemini3Flash, // Model constant (see below)
-    ProfileName:     "my-session",          // Persist cookies/logins (optional)
-    Headless:        true,                  // Run without browser window
-    Viewport:        bua.DesktopViewport,   // Or TabletViewport, MobileViewport
-    Debug:           true,                  // Verbose logging
-    ShowAnnotations: true,                  // Visual element overlays
+    // Required
+    APIKey: "your-api-key",
+
+    // Commonly used (all optional with good defaults)
+    Model:    bua.ModelGemini3Flash,  // Default
+    Headless: false,                  // Show browser window
+    Debug:    true,                   // Verbose logging
+    Preset:   bua.PresetBalanced,     // Token/quality tradeoff
+
+    // Browser options
+    Viewport:    bua.DesktopViewport, // Or TabletViewport, MobileViewport
+    ProfileName: "my-session",        // Persist cookies/logins
+
+    // Visual debugging
+    ShowAnnotations: true,            // Draw element indices on page
 }
 ```
 
@@ -133,67 +168,44 @@ All Gemini 2.x/3.x models have 1M token context window.
 | `bua.ModelGemini25FlashLite` | gemini-2.5-flash-lite | Most cost-effective |
 | `bua.ModelGemini20Flash` | gemini-2.0-flash | Previous gen, stable |
 
-### Token Management & Presets
+### Token Management
 
-Control token usage and speed with presets:
+> **Note:** The `Preset` field (see [Presets](#presets) above) is the recommended way to control token usage.
+> The `TokenPreset` variables and `ApplyTokenPreset()` method still work but are deprecated.
+
+**Migration from old API:**
 
 ```go
-cfg := bua.Config{
-    APIKey: apiKey,
-    Model:  bua.ModelGemini25Flash,
-}
+// Old way (deprecated)
+cfg.ApplyTokenPreset(bua.TokenPresetTextOnly)
 
-// Apply a preset
-cfg.ApplyTokenPreset(bua.TokenPresetTextOnly) // Fastest, no screenshots
+// New way (simpler)
+cfg := bua.Config{APIKey: apiKey, Preset: bua.PresetFast}
 ```
 
-| Preset | Screenshots | Tokens/Page | Speed | Best For |
-|--------|-------------|-------------|-------|----------|
-| `TokenPresetTextOnly` | None | ~5-15K | Fastest | Text extraction, form filling, scraping |
-| `TokenPresetEfficient` | 640px, q50 | ~15-25K | Fast | High-volume automation, cost savings |
-| `TokenPresetBalanced` | 800px, q60 | ~25-40K | Normal | Most tasks (default behavior) |
-| `TokenPresetQuality` | 1024px, q75 | ~40-60K | Slower | Complex UIs, visual verification |
-| `TokenPresetMaximum` | 1280px, q85 | ~60-100K | Slowest | Debugging, maximum accuracy |
+| Old (Deprecated) | New (Recommended) |
+|------------------|-------------------|
+| `TokenPresetTextOnly` | `PresetFast` |
+| `TokenPresetEfficient` | `PresetEfficient` |
+| `TokenPresetBalanced` | `PresetBalanced` (default) |
+| `TokenPresetQuality` | `PresetQuality` |
+| `TokenPresetMaximum` | `PresetMax` |
 
-### Manual Token Configuration
+### Advanced: Manual Token Configuration
 
-For fine-grained control:
+> **Note:** Most users should use `Preset` instead. These fields are for advanced use cases only.
 
 ```go
 bua.Config{
-    // Element map limits
-    MaxElements: 150,        // Max interactive elements sent to LLM (default: 150)
+    APIKey: apiKey,
+    Preset: bua.PresetBalanced, // Start with a preset, then override if needed
 
-    // Screenshot compression
-    ScreenshotMaxWidth: 800, // Resize width in pixels (default: 800)
-    ScreenshotQuality:  60,  // JPEG quality 1-100 (default: 60)
-
-    // Disable screenshots entirely
-    TextOnly: true,          // Fastest mode, element map only
+    // Override specific settings (rarely needed)
+    MaxElements:        150,  // Max elements sent to LLM
+    ScreenshotMaxWidth: 800,  // Screenshot width in pixels
+    ScreenshotQuality:  60,   // JPEG quality 1-100
 }
 ```
-
-### TextOnly Mode
-
-For maximum speed when visual context isn't needed:
-
-```go
-cfg := bua.Config{
-    APIKey:   apiKey,
-    Model:    bua.ModelGemini3Flash,
-    TextOnly: true, // No screenshots, relies on element map text
-}
-```
-
-**Benefits:**
-- Eliminates screenshot capture/encoding overhead (~5-10s per step)
-- Reduces tokens by 50-80%
-- Ideal for: text extraction, form filling, simple navigation, high-speed scraping
-
-**Trade-offs:**
-- No visual context for the AI
-- May struggle with complex visual layouts
-- Best for well-structured pages with clear text labels
 
 ### Viewport Sizes
 
@@ -319,6 +331,25 @@ The agent automatically handles Gemini API rate limits (429 errors):
 - Waits and retries automatically
 - Add delays between tasks for high-volume operations
 
+## Token Counting
+
+bua-go includes an accurate tokenizer using Google's API:
+
+```go
+// Count tokens for budget management
+count := agent.CountTokens(ctx, "Your text here")
+fmt.Printf("This text uses %d tokens\n", count)
+
+// Token usage is also tracked in results
+result, _ := agent.Run(ctx, "do something")
+fmt.Printf("Task used %d tokens\n", result.TokensUsed)
+```
+
+The tokenizer:
+- Uses Google's `CountTokens` API for accuracy
+- Caches results to reduce API calls
+- Falls back to estimation if API is unavailable
+
 ## API Reference
 
 ```go
@@ -351,6 +382,9 @@ elements, err := agent.GetElementMap(ctx)
 // Show/hide annotations
 agent.ShowAnnotations(ctx, nil)
 agent.HideAnnotations(ctx)
+
+// Count tokens (uses Google's tokenizer for accuracy)
+tokenCount := agent.CountTokens(ctx, "your text here")
 
 // Cleanup
 agent.Close()
