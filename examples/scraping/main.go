@@ -26,15 +26,13 @@ func main() {
 		log.Fatal("GOOGLE_API_KEY environment variable is required")
 	}
 
-	// Create agent configuration with all features enabled
+	// Create agent - simplified config, only set what you need
 	cfg := bua.Config{
-		APIKey:          apiKey,
-		Model:           "gemini-3-flash-preview", // Latest model with 1M input, 65K output
-		ProfileName:     "scraping",
-		Headless:        false, // Show browser for debugging
-		Viewport:        bua.DesktopViewport,
-		Debug:           true, // Enable debug logging
-		ShowAnnotations: true, // Show element annotations
+		APIKey:      apiKey,
+		ProfileName: "scraping",
+		Debug:       true,
+		// For scraping, PresetFast (text-only) is often sufficient and faster:
+		// Preset: bua.PresetFast,
 	}
 
 	// Create the agent

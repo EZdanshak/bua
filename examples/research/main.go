@@ -39,23 +39,19 @@ func main() {
 	// NOTE: This example is token-intensive. If you hit rate limits (429 errors),
 	// the agent will automatically retry after the suggested delay.
 	//
-	// Token presets available:
-	//   bua.TokenPresetTextOnly  - No screenshots, fastest (~5-15K/page)
-	//   bua.TokenPresetEfficient - Minimize tokens (~15-25K/page)
-	//   bua.TokenPresetBalanced  - Default balance (~25-40K/page)
-	//   bua.TokenPresetQuality   - Higher quality (~40-60K/page)
-	//   bua.TokenPresetMaximum   - Full quality (~60-100K/page)
+	// Available presets:
+	//   bua.PresetFast      - Text-only, fastest (~5-15K/page)
+	//   bua.PresetEfficient - Small screenshots (~15-25K/page)
+	//   bua.PresetBalanced  - Default balance (~25-40K/page)
+	//   bua.PresetQuality   - Higher quality (~40-60K/page)
+	//   bua.PresetMax       - Full quality (~60-100K/page)
 	cfg := bua.Config{
-		APIKey:          apiKey,
-		Model:           bua.ModelGemini25Flash, // All models have 1M context
-		ProfileName:     "research",
-		Headless:        false, // Show browser for debugging
-		Viewport:        bua.DesktopViewport,
-		Debug:           true,
-		ShowAnnotations: false, // Disable annotations for research tasks
+		APIKey:      apiKey,
+		Model:       bua.ModelGemini25Flash,
+		ProfileName: "research",
+		Preset:      bua.PresetFast, // Text-only for fast extraction
+		Debug:       true,
 	}
-	// Apply token preset - use TextOnly for fast text extraction (no screenshots)
-	cfg.ApplyTokenPreset(bua.TokenPresetTextOnly)
 
 	// Create the agent
 	agent, err := bua.New(cfg)

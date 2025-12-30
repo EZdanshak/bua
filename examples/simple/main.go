@@ -25,20 +25,23 @@ func main() {
 		log.Fatal("GOOGLE_API_KEY environment variable is required")
 	}
 
-	// Create agent configuration with all features enabled
+	// Create agent - only APIKey is required, everything else has sensible defaults!
+	//
+	// Simplest usage:
+	//   agent, _ := bua.New(bua.Config{APIKey: apiKey})
+	//
+	// With preset for different needs:
+	//   Preset: bua.PresetFast      // Text-only, fastest, lowest tokens
+	//   Preset: bua.PresetEfficient // Small screenshots, cost savings
+	//   Preset: bua.PresetBalanced  // Default, good for most tasks
+	//   Preset: bua.PresetQuality   // Higher quality for complex UIs
+	//   Preset: bua.PresetMax       // Maximum quality for debugging
+	//
 	cfg := bua.Config{
-		APIKey:          apiKey,
-		Model:           bua.ModelGemini3Flash, // Use model constants for convenience
-		ProfileName:     "simple",
-		Headless:        false, // Show browser for debugging
-		Viewport:        bua.DesktopViewport,
-		Debug:           true, // Enable debug logging
-		ShowAnnotations: true, // Show element annotations
+		APIKey:      apiKey,
+		Debug:       true, // Enable debug logging
+		ProfileName: "simple",
 	}
-	// Optional: Apply token preset (default is Balanced)
-	// cfg.ApplyTokenPreset(bua.TokenPresetTextOnly)  // Fastest, no screenshots
-	// cfg.ApplyTokenPreset(bua.TokenPresetEfficient) // For cost savings
-	// cfg.ApplyTokenPreset(bua.TokenPresetQuality)   // For complex tasks
 
 	// Create the agent
 	agent, err := bua.New(cfg)
