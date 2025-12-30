@@ -1248,7 +1248,7 @@ type WaitOutput struct {
 
 type GetPageStateInput struct {
 	// ExcludeScreenshot skips screenshot capture when true (optional, defaults to false).
-	ExcludeScreenshot *bool `json:"exclude_screenshot,omitempty" jsonschema:"description=Set to true to skip screenshot capture for faster response. Default is false (include screenshot)."`
+	ExcludeScreenshot *bool `json:"exclude_screenshot,omitempty"`
 }
 
 type GetPageStateOutput struct {
