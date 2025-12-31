@@ -25,6 +25,7 @@ The AI sees the page (screenshots + DOM), decides what to click/type/scroll, and
 | **Google ADK**               | Powered by Gemini via Agent Development Kit        |
 | **Token Presets**            | Optimize for speed, cost, or quality               |
 | **TextOnly Mode**            | Skip screenshots for fastest operation             |
+| **Enhanced DOM**             | CDP-based extraction with paint order filtering    |
 | **Session Memory**           | Remembers cookies, logins, and patterns            |
 | **Headless Mode**            | Run invisibly in the background                    |
 | **Viewport Presets**         | Desktop, tablet, and mobile sizes                  |
@@ -206,6 +207,38 @@ bua.Config{
     ScreenshotQuality:  60,   // JPEG quality 1-100
 }
 ```
+
+### Enhanced DOM Extraction
+
+Enable CDP-based enhanced DOM extraction for better element detection and token efficiency:
+
+```go
+bua.Config{
+    APIKey:      apiKey,
+    EnhancedDOM: true, // Enable advanced element extraction
+}
+```
+
+**Features enabled with `EnhancedDOM: true`:**
+
+| Feature | Description |
+|---------|-------------|
+| **Paint Order Filtering** | Removes visually occluded elements (hidden behind other elements) |
+| **Containment Filtering** | Removes redundant child elements inside interactive parents |
+| **Cursor-based Detection** | Detects clickable elements via `cursor: pointer` style |
+| **New Element Markers** | Marks elements that appeared since last snapshot with `*[id]` |
+| **Backend Node ID Tracking** | Stable element references across page updates |
+| **Accessibility Integration** | Merges accessibility tree properties for better semantics |
+
+**When to use:**
+- Complex pages with overlapping elements (modals, dropdowns)
+- Pages with many decorative/non-interactive elements
+- Scenarios requiring change detection between page states
+- Applications needing more accurate interactive element detection
+
+**Trade-offs:**
+- Slightly higher extraction overhead (parallel CDP calls)
+- Falls back to standard extraction if CDP calls fail
 
 ### Viewport Sizes
 

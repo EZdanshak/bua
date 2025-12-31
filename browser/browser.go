@@ -363,6 +363,22 @@ func (b *Browser) GetAccessibilityTree(ctx context.Context) (*dom.AccessibilityT
 	return dom.ExtractAccessibilityTree(ctx, page)
 }
 
+// GetEnhancedElementMap extracts the enhanced element map from the current page.
+// It uses CDP-based extraction with paint order filtering, containment detection,
+// and accessibility tree integration for better element identification.
+// Pass the previous element map to enable new element detection.
+func (b *Browser) GetEnhancedElementMap(ctx context.Context, previousMap *dom.EnhancedElementMap) (*dom.EnhancedElementMap, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	page := b.getActivePageLocked()
+	if page == nil {
+		return nil, fmt.Errorf("no active page")
+	}
+
+	return dom.ExtractEnhancedElementMap(ctx, page, previousMap)
+}
+
 // Click clicks on an element by its index in the element map.
 func (b *Browser) Click(ctx context.Context, elementIndex int) error {
 	b.mu.Lock()

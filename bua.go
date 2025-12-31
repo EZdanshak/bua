@@ -160,6 +160,15 @@ type Config struct {
 
 	// TextOnly disables screenshots entirely. Use Preset: PresetFast instead.
 	TextOnly bool
+
+	// EnhancedDOM enables CDP-based DOM extraction with advanced features:
+	// - Paint order filtering (removes visually occluded elements)
+	// - Containment filtering (removes redundant child elements inside interactive parents)
+	// - Cursor-based interactive detection
+	// - New element detection (marks elements that weren't in previous snapshot)
+	// - Backend node ID tracking for stable element references
+	// Default: false (uses standard JavaScript-based extraction)
+	EnhancedDOM bool
 }
 
 // Viewport defines browser viewport dimensions.
@@ -519,6 +528,7 @@ func (a *Agent) Start(ctx context.Context) error {
 		ScreenshotMaxWidth: a.config.ScreenshotMaxWidth,
 		ScreenshotQuality:  a.config.ScreenshotQuality,
 		TextOnly:           a.config.TextOnly,
+		EnhancedDOM:        a.config.EnhancedDOM,
 	}, a.browser)
 
 	if err := a.browserAgent.Init(ctx); err != nil {

@@ -64,6 +64,10 @@ type Config struct {
 	// When enabled, the agent relies only on element map text data.
 	// Best for: text extraction, form filling, simple navigation where visual context isn't needed.
 	TextOnly bool
+
+	// EnhancedDOM enables CDP-based DOM extraction with advanced features.
+	// Includes paint order filtering, containment filtering, cursor-based detection.
+	EnhancedDOM bool
 }
 
 // BrowserAgent wraps an ADK agent with browser automation capabilities.
@@ -74,6 +78,9 @@ type BrowserAgent struct {
 	logger    *Logger
 	tools     []tool.Tool
 	tokenizer *Tokenizer
+
+	// Enhanced DOM tracking for change detection
+	prevEnhancedMap *dom.EnhancedElementMap
 }
 
 // New creates a new browser agent.
@@ -151,6 +158,35 @@ func (a *BrowserAgent) Init(ctx context.Context) error {
 	return nil
 }
 
+// getElementMap returns elements using either enhanced or standard extraction based on config.
+// For enhanced mode, it tracks the previous map for new element detection.
+func (a *BrowserAgent) getElementMap(ctx context.Context) (*dom.ElementMap, error) {
+	if a.config.EnhancedDOM {
+		enhanced, err := a.browser.GetEnhancedElementMap(ctx, a.prevEnhancedMap)
+		if err != nil {
+			// Fall back to standard extraction on error
+			return a.browser.GetElementMap(ctx)
+		}
+		a.prevEnhancedMap = enhanced
+		return &enhanced.ElementMap, nil
+	}
+	return a.browser.GetElementMap(ctx)
+}
+
+// getElementMapEnhanced returns the enhanced element map when in enhanced mode.
+// Returns nil if not in enhanced mode or if extraction fails.
+func (a *BrowserAgent) getElementMapEnhanced(ctx context.Context) *dom.EnhancedElementMap {
+	if !a.config.EnhancedDOM {
+		return nil
+	}
+	enhanced, err := a.browser.GetEnhancedElementMap(ctx, a.prevEnhancedMap)
+	if err != nil {
+		return nil
+	}
+	a.prevEnhancedMap = enhanced
+	return enhanced
+}
+
 // preAction is called before browser actions to show annotations and capture state.
 func (a *BrowserAgent) preAction() {
 	if a.browser == nil || !a.config.ShowAnnotations {
@@ -159,10 +195,10 @@ func (a *BrowserAgent) preAction() {
 
 	bgCtx := context.Background()
 
-	// Get element map
-	elements, err := a.browser.GetElementMap(bgCtx)
+	// Get element map (uses enhanced extraction if enabled)
+	elements, err := a.getElementMap(bgCtx)
 	if err != nil {
-		a.logger.Error("preAction/GetElementMap", err)
+		a.logger.Error("preAction/getElementMap", err)
 		return
 	}
 
@@ -230,10 +266,10 @@ func (a *BrowserAgent) captureScreenshotForResponse() string {
 
 	bgCtx := context.Background()
 
-	// Get elements for annotations
-	elements, err := a.browser.GetElementMap(bgCtx)
+	// Get elements for annotations (uses enhanced extraction if enabled)
+	elements, err := a.getElementMap(bgCtx)
 	if err != nil {
-		a.logger.Error("captureScreenshotForResponse/GetElementMap", err)
+		a.logger.Error("captureScreenshotForResponse/getElementMap", err)
 		return ""
 	}
 
@@ -509,22 +545,47 @@ func (a *BrowserAgent) createBrowserTools() ([]tool.Tool, error) {
 			Title:   a.browser.GetTitle(),
 		}
 
-		elements, err := a.browser.GetElementMap(bgCtx)
-		if err != nil {
-			output.Success = false
-			output.Error = fmt.Sprintf("Failed to get element map: %v", err)
-			a.logger.Error("get_page_state", err)
-			return output, nil
-		}
-
 		// Use limited element count to stay within token budget
 		// Default to 150 elements if not configured (balances visibility vs tokens)
 		maxElements := a.config.MaxElements
 		if maxElements <= 0 {
 			maxElements = 150
 		}
-		output.ElementMap = elements.ToTokenStringLimited(maxElements)
-		a.logger.PageState(output.URL, output.Title, elements.Count())
+
+		// Get element map (declare at outer scope for use in annotations)
+		var elements *dom.ElementMap
+		var elementsErr error
+
+		// Use enhanced extraction if enabled (with new element markers and filtering)
+		if a.config.EnhancedDOM {
+			enhanced := a.getElementMapEnhanced(bgCtx)
+			if enhanced != nil {
+				output.ElementMap = enhanced.ToTokenStringEnhanced(maxElements)
+				a.logger.PageState(output.URL, output.Title, len(enhanced.Elements))
+				elements = &enhanced.ElementMap // For annotations
+			} else {
+				// Fall back to standard extraction
+				elements, elementsErr = a.getElementMap(bgCtx)
+				if elementsErr != nil {
+					output.Success = false
+					output.Error = fmt.Sprintf("Failed to get element map: %v", elementsErr)
+					a.logger.Error("get_page_state", elementsErr)
+					return output, nil
+				}
+				output.ElementMap = elements.ToTokenStringLimited(maxElements)
+				a.logger.PageState(output.URL, output.Title, elements.Count())
+			}
+		} else {
+			elements, elementsErr = a.getElementMap(bgCtx)
+			if elementsErr != nil {
+				output.Success = false
+				output.Error = fmt.Sprintf("Failed to get element map: %v", elementsErr)
+				a.logger.Error("get_page_state", elementsErr)
+				return output, nil
+			}
+			output.ElementMap = elements.ToTokenStringLimited(maxElements)
+			a.logger.PageState(output.URL, output.Title, elements.Count())
+		}
 
 		// Determine if screenshot should be captured
 		// Skip if: TextOnly mode OR ExcludeScreenshot explicitly set to true
