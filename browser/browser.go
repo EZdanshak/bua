@@ -39,6 +39,9 @@ type Config struct {
 
 	// Debug enables verbose logging.
 	Debug bool
+
+	// Stealth configures anti-detection measures.
+	Stealth StealthConfig
 }
 
 // DefaultConfig returns a default browser configuration.
@@ -49,6 +52,7 @@ func DefaultConfig() Config {
 		ViewportHeight:    720,
 		ShowHighlight:     true,
 		HighlightDuration: 300 * time.Millisecond,
+		Stealth:           DefaultStealthConfig(),
 	}
 }
 
@@ -136,9 +140,8 @@ func (b *Browser) Start(ctx context.Context) error {
 		l = l.UserDataDir(tempDir)
 	}
 
-	// Additional Chrome flags
+	// Additional Chrome flags for general operation
 	l = l.Set("disable-background-networking").
-		Set("disable-backgrounding-occluded-windows").
 		Set("disable-breakpad").
 		Set("disable-client-side-phishing-detection").
 		Set("disable-default-apps").
@@ -151,6 +154,25 @@ func (b *Browser) Start(ctx context.Context) error {
 		Set("metrics-recording-only").
 		Set("no-first-run").
 		Set("safebrowsing-disable-auto-update")
+
+	// Add stealth-specific flags if enabled
+	if b.config.Stealth.EnableStealth {
+		// Most important: disable automation detection
+		l = l.Set("disable-blink-features", "AutomationControlled")
+		l = l.Set("disable-infobars")
+		l = l.Set("disable-dev-shm-usage")
+		l = l.Set("disable-ipc-flooding-protection")
+		l = l.Set("disable-renderer-backgrounding")
+		l = l.Set("disable-background-timer-throttling")
+		l = l.Set("no-sandbox")
+		l = l.Set("ignore-certificate-errors")
+		if b.config.Debug {
+			fmt.Println("[Stealth] Anti-detection launch flags applied")
+		}
+	}
+
+	// Set window size to match viewport (prevents responsive layout issues)
+	l = l.Set("window-size", fmt.Sprintf("%d,%d", b.config.ViewportWidth, b.config.ViewportHeight))
 
 	// Launch browser
 	url, err := l.Launch()
@@ -166,10 +188,39 @@ func (b *Browser) Start(ctx context.Context) error {
 	}
 	b.rod = browser
 
+	// Set browser window size to match viewport (ensures consistency)
+	if !b.config.Headless {
+		// Get the first target to set window bounds
+		windowWidth := b.config.ViewportWidth + 16   // Add chrome border
+		windowHeight := b.config.ViewportHeight + 88 // Add toolbar height
+		boundsErr := proto.BrowserSetWindowBounds{
+			WindowID: 1,
+			Bounds: &proto.BrowserBounds{
+				Width:  &windowWidth,
+				Height: &windowHeight,
+			},
+		}.Call(browser)
+		if boundsErr != nil && b.config.Debug {
+			fmt.Printf("[Browser] Warning: failed to set window bounds: %v\n", boundsErr)
+		}
+	}
+
 	// Create initial page
 	page, err := b.rod.Page(proto.TargetCreateTarget{URL: "about:blank"})
 	if err != nil {
 		return fmt.Errorf("failed to create initial page: %w", err)
+	}
+
+	// Apply stealth mode to page if enabled
+	if b.config.Stealth.EnableStealth {
+		if err := applyStealthMode(page, b.config.Stealth); err != nil {
+			if b.config.Debug {
+				fmt.Printf("[Stealth] Warning: failed to apply stealth mode: %v\n", err)
+			}
+			// Continue anyway - stealth is best-effort
+		} else if b.config.Debug {
+			fmt.Println("[Stealth] Anti-detection scripts injected")
+		}
 	}
 
 	// Set viewport
@@ -300,6 +351,15 @@ func (b *Browser) NewTab(ctx context.Context, url string) (string, error) {
 	page, err := b.rod.Page(proto.TargetCreateTarget{URL: targetURL})
 	if err != nil {
 		return "", fmt.Errorf("failed to create new tab: %w", err)
+	}
+
+	// Apply stealth mode to new tab if enabled
+	if b.config.Stealth.EnableStealth {
+		if err := applyStealthMode(page, b.config.Stealth); err != nil {
+			if b.config.Debug {
+				fmt.Printf("[Stealth] Warning: failed to apply stealth mode to new tab: %v\n", err)
+			}
+		}
 	}
 
 	// Set viewport

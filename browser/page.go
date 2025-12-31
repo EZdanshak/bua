@@ -19,6 +19,11 @@ func (b *Browser) Navigate(ctx context.Context, url string) error {
 		return fmt.Errorf("no active page")
 	}
 
+	// Add human-like delay before navigation
+	if b.config.Stealth.HumanLikeDelays {
+		humanDelay(b.config.Stealth.MinDelay, b.config.Stealth.MaxDelay)
+	}
+
 	// Navigate to URL
 	if err := page.Navigate(url); err != nil {
 		return fmt.Errorf("navigation failed: %w", err)
@@ -112,12 +117,30 @@ func (b *Browser) Click(ctx context.Context, elementIndex int, elementMap *dom.E
 		b.highlightElement(ctx, element)
 	}
 
-	// Get center coordinates
-	centerX, centerY := element.BoundingBox.Center()
+	// Add human-like delay before click
+	if b.config.Stealth.HumanLikeDelays {
+		humanDelay(b.config.Stealth.MinDelay, b.config.Stealth.MaxDelay)
+	}
 
-	// Move mouse and click
-	if err := page.Mouse.MoveTo(proto.Point{X: centerX, Y: centerY}); err != nil {
-		return fmt.Errorf("failed to move mouse: %w", err)
+	// Get center coordinates with optional random offset for human-like behavior
+	centerX, centerY := element.BoundingBox.Center()
+	if b.config.Stealth.HumanLikeDelays {
+		offsetX, offsetY := randomMouseOffset(3.0) // Max 3px offset
+		centerX += offsetX
+		centerY += offsetY
+	}
+
+	// Move mouse with human-like motion (linear interpolation)
+	if err := page.Mouse.MoveLinear(proto.Point{X: centerX, Y: centerY}, 5); err != nil {
+		// Fallback to direct move if linear fails
+		if err := page.Mouse.MoveTo(proto.Point{X: centerX, Y: centerY}); err != nil {
+			return fmt.Errorf("failed to move mouse: %w", err)
+		}
+	}
+
+	// Small delay before click (like human reaction time)
+	if b.config.Stealth.HumanLikeDelays {
+		humanDelay(20, 50)
 	}
 
 	if err := page.Mouse.Click(proto.InputMouseButtonLeft, 1); err != nil {
@@ -209,10 +232,23 @@ func (b *Browser) TypeText(ctx context.Context, elementIndex int, text string, e
 		b.highlightElement(ctx, element)
 	}
 
+	// Add human-like delay before typing
+	if b.config.Stealth.HumanLikeDelays {
+		humanDelay(b.config.Stealth.MinDelay, b.config.Stealth.MaxDelay)
+	}
+
 	// Click to focus the element first
 	centerX, centerY := element.BoundingBox.Center()
-	if err := page.Mouse.MoveTo(proto.Point{X: centerX, Y: centerY}); err != nil {
-		return fmt.Errorf("failed to move mouse: %w", err)
+	if b.config.Stealth.HumanLikeDelays {
+		offsetX, offsetY := randomMouseOffset(2.0)
+		centerX += offsetX
+		centerY += offsetY
+	}
+
+	if err := page.Mouse.MoveLinear(proto.Point{X: centerX, Y: centerY}, 5); err != nil {
+		if err := page.Mouse.MoveTo(proto.Point{X: centerX, Y: centerY}); err != nil {
+			return fmt.Errorf("failed to move mouse: %w", err)
+		}
 	}
 	if err := page.Mouse.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return fmt.Errorf("click to focus failed: %w", err)
@@ -225,9 +261,20 @@ func (b *Browser) TypeText(ctx context.Context, elementIndex int, text string, e
 		// Continue even if clear fails
 	}
 
-	// Type the text using InsertText for string input
-	if err := page.InsertText(text); err != nil {
-		return fmt.Errorf("type failed: %w", err)
+	// Type the text - use character-by-character for more human-like behavior
+	if b.config.Stealth.HumanLikeDelays && len(text) < 100 {
+		// Type character by character with small random delays
+		for _, char := range text {
+			if err := page.InsertText(string(char)); err != nil {
+				return fmt.Errorf("type failed: %w", err)
+			}
+			humanDelay(30, 80) // Random delay between keystrokes
+		}
+	} else {
+		// Fast insert for longer text
+		if err := page.InsertText(text); err != nil {
+			return fmt.Errorf("type failed: %w", err)
+		}
 	}
 
 	return nil
