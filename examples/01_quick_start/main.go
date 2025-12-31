@@ -46,7 +46,7 @@ func main() {
 	// Run a simple task
 	fmt.Println("\n--- Running task: Search for 'golang tutorials' on Google ---")
 
-	result, err := agent.Run(ctx, "Go to google.com and search for 'golang tutorials'")
+	result, err := agent.Run(ctx, "Go to duckduckgo and search for 'golang tutorials'")
 	if err != nil {
 		log.Fatalf("Task failed: %v", err)
 	}
