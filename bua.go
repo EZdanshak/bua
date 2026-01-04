@@ -49,7 +49,7 @@ func (a *Agent) Start(ctx context.Context) error {
 		ProfileName:       a.config.ProfileName,
 		ViewportWidth:     a.config.Viewport.Width,
 		ViewportHeight:    a.config.Viewport.Height,
-		ShowHighlight:     *a.config.ShowHighlight,
+		ShowHighlight:     a.config.ShowHighlight,
 		HighlightDuration: time.Duration(a.config.HighlightDurationMs) * time.Millisecond,
 		Debug:             a.config.Debug,
 	}

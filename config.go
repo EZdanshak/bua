@@ -95,8 +95,8 @@ type Config struct {
 	ShowAnnotations bool
 
 	// ShowHighlight highlights elements before actions.
-	// Default: true when not headless.
-	ShowHighlight *bool
+	// Default: true.
+	ShowHighlight bool
 
 	// HighlightDuration is how long to show action highlights.
 	// Default: 300ms.
@@ -200,11 +200,6 @@ func (c *Config) applyDefaults() {
 	// We use the zero value check
 	if !c.TextOnly && preset.TextOnly {
 		c.TextOnly = preset.TextOnly
-	}
-
-	if c.ShowHighlight == nil {
-		show := !c.Headless
-		c.ShowHighlight = &show
 	}
 
 	if c.HighlightDurationMs == 0 {

@@ -256,7 +256,7 @@ TextOnly:           false, // true disables screenshots
 ShowAnnotations:    false, // true shows element indices
 
 // Visual Feedback
-ShowHighlight:       boolPtr(true),
+ShowHighlight:       true,
 HighlightDurationMs: 300,
 
 // Debugging
