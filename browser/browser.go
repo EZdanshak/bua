@@ -40,6 +40,10 @@ type Config struct {
 	// Debug enables verbose logging.
 	Debug bool
 
+	// ShowAnnotations enables element annotations on screenshots.
+	// When true, screenshots include bounding boxes and index labels.
+	ShowAnnotations bool
+
 	// Stealth configures anti-detection measures.
 	Stealth StealthConfig
 }

@@ -68,13 +68,14 @@ func (a *Agent) Start(ctx context.Context) error {
 
 	// Create browser agent
 	agentCfg := agent.AgentConfig{
-		APIKey:        a.config.APIKey,
-		Model:         a.config.Model,
-		MaxSteps:      a.config.MaxSteps,
-		TextOnly:      a.config.TextOnly,
-		MaxWidth:      a.config.ScreenshotMaxWidth,
-		Debug:         a.config.Debug,
-		ScreenshotDir: a.config.ScreenshotDir,
+		APIKey:          a.config.APIKey,
+		Model:           a.config.Model,
+		MaxSteps:        a.config.MaxSteps,
+		TextOnly:        a.config.TextOnly,
+		MaxWidth:        a.config.ScreenshotMaxWidth,
+		Debug:           a.config.Debug,
+		ScreenshotDir:   a.config.ScreenshotDir,
+		ShowAnnotations: a.config.ShowAnnotations,
 	}
 
 	browserAgent, err := agent.NewBrowserAgent(ctx, agentCfg, b)

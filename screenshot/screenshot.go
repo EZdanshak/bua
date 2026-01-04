@@ -16,6 +16,32 @@ import (
 	"github.com/nfnt/resize"
 )
 
+// BoundingBoxInfo provides bounding box data for annotation.
+type BoundingBoxInfo interface {
+	GetX() float64
+	GetY() float64
+	GetWidth() float64
+	GetHeight() float64
+	GetIsEmpty() bool
+}
+
+// ElementInfo provides element data needed for annotation.
+type ElementInfo interface {
+	GetIndex() int
+	GetTagName() string
+	GetRole() string
+	GetText() string
+	GetBoundingBox() BoundingBoxInfo
+	GetIsVisible() bool
+}
+
+// ElementMapInterface defines the interface for element maps used in annotations.
+// This allows the screenshot package to work with element maps without circular imports.
+type ElementMapInterface interface {
+	Len() int
+	GetElements() []ElementInfo
+}
+
 // ErrBlankPage is returned when attempting to screenshot a blank page.
 var ErrBlankPage = errors.New("page is blank (about:blank)")
 
@@ -445,4 +471,90 @@ func CaptureAfterAction(ctx context.Context, page *rod.Page, maxWidth int) ([]by
 	opts.WaitForIdle = true
 
 	return Capture(ctx, page, opts)
+}
+
+// AnnotatedOptions extends Options with annotation settings.
+type AnnotatedOptions struct {
+	Options
+	// Annotate enables drawing bounding boxes and labels on the screenshot.
+	Annotate bool
+	// AnnotationConfig customizes annotation appearance.
+	AnnotationConfig *AnnotationConfig
+}
+
+// DefaultAnnotatedOptions returns options with annotations enabled.
+func DefaultAnnotatedOptions() AnnotatedOptions {
+	cfg := DefaultAnnotationConfig()
+	return AnnotatedOptions{
+		Options:          LLMOptions(),
+		Annotate:         true,
+		AnnotationConfig: &cfg,
+	}
+}
+
+// CaptureWithAnnotations captures a screenshot and draws element annotations.
+// This follows browser-use pattern: bounding boxes around interactive elements with index labels.
+func CaptureWithAnnotations(ctx context.Context, page *rod.Page, elementMap ElementMapInterface, opts AnnotatedOptions) ([]byte, error) {
+	// First capture the base screenshot
+	data, err := Capture(ctx, page, opts.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	// If annotations disabled or no elements, return as-is
+	if !opts.Annotate || elementMap == nil || elementMap.Len() == 0 {
+		return data, nil
+	}
+
+	// Get annotation config
+	cfg := DefaultAnnotationConfig()
+	if opts.AnnotationConfig != nil {
+		cfg = *opts.AnnotationConfig
+	}
+
+	// Apply annotations
+	return Annotate(data, elementMap, cfg)
+}
+
+// ForLLMWithAnnotations captures an annotated screenshot optimized for LLM vision.
+// Includes bounding boxes around interactive elements with index labels.
+func ForLLMWithAnnotations(ctx context.Context, page *rod.Page, elementMap ElementMapInterface, maxWidth int) ([]byte, error) {
+	opts := DefaultAnnotatedOptions()
+	if maxWidth > 0 {
+		opts.MaxWidth = maxWidth
+	}
+	return CaptureWithAnnotations(ctx, page, elementMap, opts)
+}
+
+// ForLLMSafeWithAnnotations captures an annotated screenshot, returning nil for blank pages.
+func ForLLMSafeWithAnnotations(ctx context.Context, page *rod.Page, elementMap ElementMapInterface, maxWidth int) ([]byte, error) {
+	opts := DefaultAnnotatedOptions()
+	if maxWidth > 0 {
+		opts.MaxWidth = maxWidth
+	}
+
+	data, err := CaptureWithAnnotations(ctx, page, elementMap, opts)
+	if err != nil {
+		// Return nil data for expected blank/empty conditions
+		if errors.Is(err, ErrBlankPage) || errors.Is(err, ErrEmptyScreenshot) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// CaptureAfterActionWithAnnotations captures an annotated screenshot after an action.
+func CaptureAfterActionWithAnnotations(ctx context.Context, page *rod.Page, elementMap ElementMapInterface, maxWidth int) ([]byte, error) {
+	opts := DefaultAnnotatedOptions()
+	if maxWidth > 0 {
+		opts.MaxWidth = maxWidth
+	}
+
+	// Use longer stability timeout for post-action captures
+	opts.StabilityTimeout = 1500 * time.Millisecond
+	opts.WaitForIdle = true
+
+	return CaptureWithAnnotations(ctx, page, elementMap, opts)
 }

@@ -33,6 +33,7 @@ type BrowserAgent struct {
 	screenshotPaths []string
 	useVision       bool
 	maxWidth        int
+	showAnnotations bool // Enable element annotations on screenshots
 }
 
 // Step represents a single step in the agent's execution.
@@ -63,6 +64,7 @@ type AgentConfig struct {
 	MaxWidth        int
 	Debug           bool
 	ScreenshotDir   string // Directory to save screenshots (empty = no saving)
+	ShowAnnotations bool   // Enable element annotations on screenshots
 }
 
 // Result represents the outcome of an agent run.
@@ -196,6 +198,7 @@ func NewBrowserAgent(ctx context.Context, cfg AgentConfig, b *browser.Browser) (
 		screenshotPaths: make([]string, 0),
 		useVision:       !cfg.TextOnly,
 		maxWidth:        maxWidth,
+		showAnnotations: cfg.ShowAnnotations,
 	}, nil
 }
 
@@ -475,9 +478,28 @@ func (a *BrowserAgent) Close() error {
 // Returns the screenshot bytes and the saved path (empty if not saved).
 // Uses ScreenshotSafe which gracefully handles blank pages by returning nil.
 func (a *BrowserAgent) captureAndSaveScreenshot(ctx context.Context, stepNum int) ([]byte, string, error) {
-	// Use ScreenshotSafe which handles blank pages gracefully
-	// This returns nil data (not error) if page is blank or content is empty
-	data, err := a.browser.ScreenshotSafe(ctx, false)
+	var data []byte
+	var err error
+
+	// Choose between annotated and regular screenshots
+	if a.showAnnotations {
+		// Get element map for annotations
+		elementMap, mapErr := a.browser.GetElementMap(ctx)
+		if mapErr != nil {
+			if a.debug {
+				fmt.Printf("[Screenshot] Step %d: Failed to get element map for annotations: %v\n", stepNum, mapErr)
+			}
+			// Fall back to regular screenshot
+			data, err = a.browser.ScreenshotSafe(ctx, false)
+		} else {
+			data, err = a.browser.ScreenshotSafeWithAnnotations(ctx, elementMap)
+		}
+	} else {
+		// Use ScreenshotSafe which handles blank pages gracefully
+		// This returns nil data (not error) if page is blank or content is empty
+		data, err = a.browser.ScreenshotSafe(ctx, false)
+	}
+
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to capture screenshot: %w", err)
 	}
@@ -501,7 +523,12 @@ func (a *BrowserAgent) captureAndSaveScreenshot(ctx context.Context, stepNum int
 		a.screenshotPaths = append(a.screenshotPaths, savedPath)
 
 		if a.debug {
-			fmt.Printf("[Screenshot] Step %d: Saved to %s\n", stepNum, savedPath)
+			fmt.Printf("[Screenshot] Step %d: Saved to %s%s\n", stepNum, savedPath, func() string {
+				if a.showAnnotations {
+					return " (with annotations)"
+				}
+				return ""
+			}())
 		}
 	}
 
@@ -511,8 +538,27 @@ func (a *BrowserAgent) captureAndSaveScreenshot(ctx context.Context, stepNum int
 // captureScreenshotAfterAction captures a screenshot after an action has completed.
 // Uses enhanced waiting for page stability after the action.
 func (a *BrowserAgent) captureScreenshotAfterAction(ctx context.Context, stepNum int) ([]byte, string, error) {
-	// Use ScreenshotAfterAction which waits for page stability
-	data, err := a.browser.ScreenshotAfterAction(ctx)
+	var data []byte
+	var err error
+
+	// Choose between annotated and regular screenshots
+	if a.showAnnotations {
+		// Get element map for annotations
+		elementMap, mapErr := a.browser.GetElementMap(ctx)
+		if mapErr != nil {
+			if a.debug {
+				fmt.Printf("[Screenshot] Step %d: Failed to get element map for annotations: %v\n", stepNum, mapErr)
+			}
+			// Fall back to regular screenshot
+			data, err = a.browser.ScreenshotAfterAction(ctx)
+		} else {
+			data, err = a.browser.ScreenshotAfterActionWithAnnotations(ctx, elementMap)
+		}
+	} else {
+		// Use ScreenshotAfterAction which waits for page stability
+		data, err = a.browser.ScreenshotAfterAction(ctx)
+	}
+
 	if err != nil {
 		// Non-fatal for blank page errors
 		if a.debug {
@@ -536,7 +582,12 @@ func (a *BrowserAgent) captureScreenshotAfterAction(ctx context.Context, stepNum
 		a.screenshotPaths = append(a.screenshotPaths, savedPath)
 
 		if a.debug {
-			fmt.Printf("[Screenshot] Step %d: After-action saved to %s\n", stepNum, savedPath)
+			fmt.Printf("[Screenshot] Step %d: After-action saved to %s%s\n", stepNum, savedPath, func() string {
+				if a.showAnnotations {
+					return " (with annotations)"
+				}
+				return ""
+			}())
 		}
 	}
 

@@ -655,3 +655,82 @@ func (b *Browser) EvaluateJS(ctx context.Context, script string) (string, error)
 
 	return result.Value.String(), nil
 }
+
+// ElementMapAdapter adapts dom.ElementMap to screenshot.ElementMapInterface.
+type ElementMapAdapter struct {
+	elementMap *dom.ElementMap
+}
+
+// NewElementMapAdapter creates an adapter for annotation.
+func NewElementMapAdapter(em *dom.ElementMap) *ElementMapAdapter {
+	return &ElementMapAdapter{elementMap: em}
+}
+
+// Len returns the number of elements.
+func (a *ElementMapAdapter) Len() int {
+	if a.elementMap == nil {
+		return 0
+	}
+	return a.elementMap.Len()
+}
+
+// GetElements returns elements as screenshot.ElementInfo slice.
+func (a *ElementMapAdapter) GetElements() []screenshotpkg.ElementInfo {
+	if a.elementMap == nil {
+		return nil
+	}
+	elements := a.elementMap.GetElements()
+	result := make([]screenshotpkg.ElementInfo, len(elements))
+	for i, el := range elements {
+		result[i] = &elementInfoAdapter{element: el}
+	}
+	return result
+}
+
+// elementInfoAdapter adapts dom.Element to screenshot.ElementInfo.
+type elementInfoAdapter struct {
+	element dom.ElementInfoInterface
+}
+
+func (a *elementInfoAdapter) GetIndex() int      { return a.element.GetIndex() }
+func (a *elementInfoAdapter) GetTagName() string { return a.element.GetTagName() }
+func (a *elementInfoAdapter) GetRole() string    { return a.element.GetRole() }
+func (a *elementInfoAdapter) GetText() string    { return a.element.GetText() }
+func (a *elementInfoAdapter) GetIsVisible() bool { return a.element.GetIsVisible() }
+func (a *elementInfoAdapter) GetBoundingBox() screenshotpkg.BoundingBoxInfo {
+	return a.element.GetBoundingBox()
+}
+
+// ScreenshotWithAnnotations takes a screenshot with element annotations.
+// This is the main entry point for annotated screenshots.
+func (b *Browser) ScreenshotWithAnnotations(ctx context.Context, elementMap *dom.ElementMap, fullPage bool) ([]byte, error) {
+	page := b.ActivePage()
+	if page == nil {
+		return nil, fmt.Errorf("no active page")
+	}
+
+	adapter := NewElementMapAdapter(elementMap)
+	return screenshotpkg.ForLLMWithAnnotations(ctx, page, adapter, b.config.ViewportWidth)
+}
+
+// ScreenshotSafeWithAnnotations takes an annotated screenshot, returning nil for blank pages.
+func (b *Browser) ScreenshotSafeWithAnnotations(ctx context.Context, elementMap *dom.ElementMap) ([]byte, error) {
+	page := b.ActivePage()
+	if page == nil {
+		return nil, nil
+	}
+
+	adapter := NewElementMapAdapter(elementMap)
+	return screenshotpkg.ForLLMSafeWithAnnotations(ctx, page, adapter, b.config.ViewportWidth)
+}
+
+// ScreenshotAfterActionWithAnnotations captures an annotated screenshot after an action.
+func (b *Browser) ScreenshotAfterActionWithAnnotations(ctx context.Context, elementMap *dom.ElementMap) ([]byte, error) {
+	page := b.ActivePage()
+	if page == nil {
+		return nil, fmt.Errorf("no active page")
+	}
+
+	adapter := NewElementMapAdapter(elementMap)
+	return screenshotpkg.CaptureAfterActionWithAnnotations(ctx, page, adapter, b.config.ViewportWidth)
+}

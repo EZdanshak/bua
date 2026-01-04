@@ -25,6 +25,21 @@ func (b BoundingBox) IsEmpty() bool {
 	return b.Width <= 0 || b.Height <= 0
 }
 
+// GetX implements BoundingBoxInfo interface.
+func (b BoundingBox) GetX() float64 { return b.X }
+
+// GetY implements BoundingBoxInfo interface.
+func (b BoundingBox) GetY() float64 { return b.Y }
+
+// GetWidth implements BoundingBoxInfo interface.
+func (b BoundingBox) GetWidth() float64 { return b.Width }
+
+// GetHeight implements BoundingBoxInfo interface.
+func (b BoundingBox) GetHeight() float64 { return b.Height }
+
+// GetIsEmpty implements BoundingBoxInfo interface.
+func (b BoundingBox) GetIsEmpty() bool { return b.IsEmpty() }
+
 // Element represents an interactive page element.
 type Element struct {
 	// Index is the element's index for LLM reference (0-based).
@@ -102,6 +117,27 @@ func (e *Element) Description() string {
 	return e.TagName
 }
 
+// GetIndex implements ElementInfo interface for screenshot annotations.
+func (e *Element) GetIndex() int { return e.Index }
+
+// GetTagName implements ElementInfo interface for screenshot annotations.
+func (e *Element) GetTagName() string { return e.TagName }
+
+// GetRole implements ElementInfo interface for screenshot annotations.
+func (e *Element) GetRole() string { return e.Role }
+
+// GetText implements ElementInfo interface for screenshot annotations.
+func (e *Element) GetText() string { return e.Text }
+
+// GetBoundingBox implements ElementInfo interface for screenshot annotations.
+// Returns a BoundingBoxInfoInterface that wraps the BoundingBox.
+func (e *Element) GetBoundingBox() BoundingBoxInfoInterface {
+	return e.BoundingBox
+}
+
+// GetIsVisible implements ElementInfo interface for screenshot annotations.
+func (e *Element) GetIsVisible() bool { return e.IsVisible }
+
 // ElementMap holds all interactive elements on a page.
 type ElementMap struct {
 	// Elements is the list of interactive elements.
@@ -151,6 +187,40 @@ func (m *ElementMap) Len() int {
 	defer m.mu.RUnlock()
 
 	return len(m.Elements)
+}
+
+// ElementInfoInterface defines the interface for element info used in screenshot annotations.
+// This matches the screenshot.ElementInfo interface.
+type ElementInfoInterface interface {
+	GetIndex() int
+	GetTagName() string
+	GetRole() string
+	GetText() string
+	GetBoundingBox() BoundingBoxInfoInterface
+	GetIsVisible() bool
+}
+
+// BoundingBoxInfoInterface defines the interface for bounding box info.
+// This matches the screenshot.BoundingBoxInfo interface.
+type BoundingBoxInfoInterface interface {
+	GetX() float64
+	GetY() float64
+	GetWidth() float64
+	GetHeight() float64
+	GetIsEmpty() bool
+}
+
+// GetElements returns all elements as ElementInfoInterface for screenshot annotations.
+// This implements ElementMapInterface from the screenshot package.
+func (m *ElementMap) GetElements() []ElementInfoInterface {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make([]ElementInfoInterface, len(m.Elements))
+	for i, el := range m.Elements {
+		result[i] = el
+	}
+	return result
 }
 
 // Clear removes all elements.
